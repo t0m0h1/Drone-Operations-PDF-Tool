@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    h1 { text-align: center; }
+    .section { margin-bottom: 30px; }
+    img.logo { height: 100px; display: block; margin: auto; }
+  </style>
+</head>
+<body>
+
+  {% if logo %}
+  <img src="{{ logo }}" style="height:100px;">
+  {% endif %}
+
+  <h1>Drone Pre-Flight Checklist</h1>
+  {% for section, items in checklists.items() %}
+    <div class="section">
+      <h2>{{ section }}</h2>
+      <ul>
+        {% for item in items %}
+          <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endfor %}
+  <p>Generated: {{ now }}</p>
+</body>
+</html>
