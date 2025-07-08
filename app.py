@@ -75,12 +75,21 @@ def index():
                 logo_filename = secure_filename(logo.filename)
                 logo.save(os.path.join(app.config['UPLOAD_FOLDER'], logo_filename))
 
-        # Handle predefined items selection
+        # # Handle predefined items selection
+        # for section, subsections in PREDEFINED_ITEMS.items():
+        #     for subsection in subsections:
+        #         field_name = f'predefined-{section}-{subsection}'
+        #         selected_items = request.form.getlist(field_name)
+        #         checklists[section][subsection] = selected_items
+
         for section, subsections in PREDEFINED_ITEMS.items():
             for subsection in subsections:
                 field_name = f'predefined-{section}-{subsection}'
                 selected_items = request.form.getlist(field_name)
-                checklists[section][subsection] = selected_items
+                # Preserve custom items by merging:
+                existing_custom_items = [item for item in checklists[section][subsection] if item not in PREDEFINED_ITEMS[section][subsection]]
+                checklists[section][subsection] = selected_items + existing_custom_items
+
 
         # Handle custom item addition
         custom_section = request.form.get('custom-section')
