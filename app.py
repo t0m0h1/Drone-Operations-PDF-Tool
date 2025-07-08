@@ -1,11 +1,12 @@
 import os
-from flask import Flask, render_template, request, redirect, send_file
+from flask import Flask, render_template, request, redirect, send_file, session
 from werkzeug.utils import secure_filename
 from utils.pdf_generator import generate_pdf
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024  # 2MB
+app.secret_key = 'super-secret-key'  # Required for session to work
 
 # Checklist structure: Section → Subsection → [items]
 PREDEFINED_ITEMS = {
@@ -60,23 +61,24 @@ checklists = {
     for section, subs in PREDEFINED_ITEMS.items()
 }
 
-logo_filename = None
-
 def encode_key(s):
     return s.replace(' ', '_')
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    global logo_filename
     if request.method == 'POST':
         # Handle logo upload
         if 'logo' in request.files:
             logo = request.files['logo']
             if logo and logo.filename != '':
                 logo_filename = secure_filename(logo.filename)
-                logo.save(os.path.join(app.config['UPLOAD_FOLDER'], logo_filename))
+                save_path = os.path.join(app.config['UPLOAD_FOLDER'], logo_filename)
+                os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+                logo.save(save_path)
+                session['logo_filename'] = logo_filename
+                print(f"[DEBUG] Logo uploaded and saved to: {save_path}")
 
-        # Handle checklist selection update (only when checkbox form submitted)
+        # Handle checklist selection update
         for section, subsections in PREDEFINED_ITEMS.items():
             for subsection in subsections:
                 field_name = f'predefined-{encode_key(section)}-{encode_key(subsection)}'
@@ -88,7 +90,7 @@ def index():
                     if item not in predefined
                 ]
 
-                if selected_items:  # Only update if this form includes checkbox data
+                if selected_items:
                     checklists[section][subsection] = selected_items + existing_custom_items
 
         # Handle custom item addition
@@ -106,7 +108,7 @@ def index():
         'index.html',
         predefined=PREDEFINED_ITEMS,
         checklists=checklists,
-        logo=logo_filename
+        logo=session.get('logo_filename')
     )
 
 @app.route('/delete_item/<section>/<subsection>/<int:index>')
@@ -121,7 +123,18 @@ def delete_item(section, subsection, index):
 
 @app.route('/download_pdf')
 def download_pdf():
-    pdf_path = generate_pdf(checklists, logo_filename)
+    logo_path = None
+    logo_filename = session.get('logo_filename')
+    if logo_filename:
+        logo_path = os.path.join(app.config['UPLOAD_FOLDER'], logo_filename)
+        abs_logo_path = os.path.abspath(logo_path)
+        print(f"[DEBUG] logo_filename: {logo_filename}")
+        print(f"[DEBUG] logo_path: {logo_path}")
+        print(f"[DEBUG] abs_logo_path: {abs_logo_path}")
+        print(f"[DEBUG] logo exists: {os.path.isfile(abs_logo_path)}")
+
+    pdf_path = generate_pdf(checklists, logo_path)
+    print(f"[DEBUG] PDF generated at: {pdf_path}")
     return send_file(pdf_path, as_attachment=True)
 
 if __name__ == '__main__':

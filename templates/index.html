@@ -18,7 +18,7 @@
         </div>
     {% endif %}
 
-    <form method="POST" enctype="multipart/form-data">
+    <form method="POST" enctype="multipart/form-data" id="main-form">
         <div class="mb-4">
             <label for="logo" class="form-label">Upload Company Logo (optional):</label>
             <input class="form-control" type="file" name="logo" id="logo" accept="image/*">
@@ -62,14 +62,14 @@
                             {% endif %}
                         {% endfor %}
 
-                        <!-- Inline form for adding custom item -->
-                        <form method="POST" class="input-group my-3">
+                        <!-- Custom item inputs -->
+                        <div class="input-group my-3">
                             <input type="hidden" name="custom-section" value="{{ section }}">
                             <input type="hidden" name="custom-subsection" value="{{ subsection }}">
                             <input type="text" name="custom-item" class="form-control"
-                                   placeholder="Add custom item to {{ subsection }}..." required>
-                            <button class="btn btn-outline-secondary" type="submit">Add</button>
-                        </form>
+                                   placeholder="Add custom item to {{ subsection }}...">
+                            <button class="btn btn-outline-secondary" type="submit" name="action" value="add-item">Add</button>
+                        </div>
 
                         <hr>
                     {% endfor %}
@@ -77,9 +77,16 @@
             </div>
         {% endfor %}
 
-        <button class="btn btn-success me-2" type="submit">Update Checklist</button>
+        <button class="btn btn-success me-2" type="submit" name="action" value="update-checklist">Update Checklist</button>
         <a class="btn btn-primary" href="{{ url_for('download_pdf') }}">Download PDF</a>
     </form>
 </div>
+
+<script>
+    // Auto-submit logo upload
+    document.getElementById('logo').addEventListener('change', function () {
+        document.getElementById('main-form').submit();
+    });
+</script>
 </body>
 </html>
