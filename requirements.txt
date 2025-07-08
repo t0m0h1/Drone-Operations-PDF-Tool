@@ -1,0 +1,4 @@
+flask
+flask-wtf
+xhtml2pdf
+jinja2
