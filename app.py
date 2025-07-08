@@ -9,7 +9,7 @@ app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024  # 2MB
 
 # Checklist structure: Section → Subsection → [items]
 PREDEFINED_ITEMS = {
-    'Loading List': {
+    'Loading/ Unloading': {
         'Pre-flight': [
             'Check power station packed',
             'Pack anemometer',
