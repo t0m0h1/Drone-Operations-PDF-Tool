@@ -2,38 +2,108 @@ import os
 from flask import Flask, render_template, request, redirect, send_file
 from werkzeug.utils import secure_filename
 from utils.pdf_generator import generate_pdf
-from datetime import datetime
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024  # 2MB
 
-checklists = {
-    'Loading List': [],
-    'Flight Reference Cards': [],
-    'Procedures': []
+# Nested checklist structure: Section -> Subsection -> items
+PREDEFINED_ITEMS = {
+    'Loading List': {
+        'Pre-flight': [
+            'Check power station packed',
+            'Pack anemometer',
+            'Prepare spare batteries',
+            'Load SD cards'
+        ],
+        'In-flight': [
+            # Usually empty or notes like “monitor battery level”
+        ],
+        'Post-flight': [
+            'Collect all equipment',
+            'Check for damage after flight'
+        ]
+    },
+    'Flight Reference Cards': {
+        'Pre-flight': [
+            'Verify GPS lock',
+            'Check compass calibration',
+            'Confirm firmware updates'
+        ],
+        'In-flight': [
+            'Monitor signal strength',
+            'Check obstacle sensors',
+            'Maintain altitude awareness'
+        ],
+        'Post-flight': [
+            'Download flight logs',
+            'Review flight data for anomalies'
+        ]
+    },
+    'Procedures': {
+        'Pre-flight': [
+            'Confirm emergency landing sites',
+            'Review weather and NOTAMs'
+        ],
+        'In-flight': [
+            'Loss of signal procedure',
+            'Emergency landing protocol'
+        ],
+        'Post-flight': [
+            'Battery swap procedure',
+            'Post-flight inspection'
+        ]
+    }
 }
+
+# Store user-selected checklist items: Section -> Subsection -> [items]
+checklists = {
+    section: {sub: [] for sub in subsections}
+    for section, subsections in PREDEFINED_ITEMS.items()
+}
+
 logo_filename = None
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     global logo_filename
     if request.method == 'POST':
-        section = request.form.get('section')
-        item = request.form.get('item')
-        if section in checklists and item:
-            checklists[section].append(item)
+        # Handle logo upload
         if 'logo' in request.files:
             logo = request.files['logo']
-            if logo.filename != '':
+            if logo and logo.filename != '':
                 logo_filename = secure_filename(logo.filename)
                 logo.save(os.path.join(app.config['UPLOAD_FOLDER'], logo_filename))
-    return render_template('index.html', checklists=checklists, logo=logo_filename)
 
-@app.route('/delete_item/<section>/<int:index>')
-def delete_item(section, index):
-    if section in checklists and 0 <= index < len(checklists[section]):
-        del checklists[section][index]
+        # Handle predefined items selection
+        for section, subsections in PREDEFINED_ITEMS.items():
+            for subsection in subsections:
+                field_name = f'predefined-{section}-{subsection}'
+                selected_items = request.form.getlist(field_name)
+                checklists[section][subsection] = selected_items
+
+        # Handle custom item addition
+        custom_section = request.form.get('custom-section')
+        custom_subsection = request.form.get('custom-subsection')
+        custom_item = request.form.get('custom-item')
+        if (custom_section in checklists and
+            custom_subsection in checklists[custom_section] and
+            custom_item and custom_item.strip()):
+            checklists[custom_section][custom_subsection].append(custom_item.strip())
+
+    return render_template(
+        'index.html',
+        predefined=PREDEFINED_ITEMS,
+        checklists=checklists,
+        logo=logo_filename
+    )
+
+@app.route('/delete_item/<section>/<subsection>/<int:index>')
+def delete_item(section, subsection, index):
+    if (section in checklists and
+        subsection in checklists[section] and
+        0 <= index < len(checklists[section][subsection])):
+        del checklists[section][subsection][index]
     return redirect('/')
 
 @app.route('/download_pdf')
