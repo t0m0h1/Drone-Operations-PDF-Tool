@@ -1,80 +1,85 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Drone Pre-Flight Checklist</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <meta charset="UTF-8">
+    <title>Drone Pre-Flight Checklist</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        .custom-item { font-style: italic; color: #444; }
+    </style>
 </head>
-<body class="p-4">
-  <h1>Drone Pre-Flight Checklist</h1>
+<body class="bg-light">
+<div class="container py-5">
+    <h1 class="mb-4">Drone Pre-Flight Checklist Generator</h1>
 
-  {% if logo %}
-    <img src="{{ url_for('static', filename='uploads/' ~ logo) }}" style="height: 100px;" class="mb-3" />
-  {% endif %}
+    {% if logo %}
+        <div class="mb-3">
+            <img src="{{ url_for('static', filename='uploads/' ~ logo) }}" alt="Company Logo" height="80">
+        </div>
+    {% endif %}
 
-  <form method="post" enctype="multipart/form-data" class="mb-5">
+    <form method="POST" enctype="multipart/form-data">
+        <div class="mb-4">
+            <label for="logo" class="form-label">Upload Company Logo (optional):</label>
+            <input class="form-control" type="file" name="logo" id="logo" accept="image/*">
+        </div>
 
-    <div class="mb-3">
-      <label class="form-label">Upload Company Logo:</label>
-      <input type="file" name="logo" class="form-control" />
-    </div>
-
-    {% for section, subsections in predefined.items() %}
-      <div class="mb-4 border rounded p-3">
-        <h2>{{ section }}</h2>
-        {% for subsection, items in subsections.items() %}
-          <fieldset class="mb-3">
-            <legend><strong>{{ subsection }}</strong></legend>
-
-            <div class="row row-cols-1 row-cols-md-2 g-2">
-              {% for item in items %}
-                <div class="col">
-                  <div class="form-check">
-                    <input
-                      class="form-check-input"
-                      type="checkbox"
-                      id="predefined-{{ section }}-{{ subsection }}-{{ loop.index0 }}"
-                      name="predefined-{{ section }}-{{ subsection }}"
-                      value="{{ item }}"
-                      {% if item in checklists[section][subsection] %}checked{% endif %}
-                    />
-                    <label class="form-check-label" for="predefined-{{ section }}-{{ subsection }}-{{ loop.index0 }}">
-                      {{ item }}
-                    </label>
-                  </div>
+        {% for section, subsections in predefined.items() %}
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">{{ section }}</h5>
                 </div>
-              {% endfor %}
-            </div>
+                <div class="card-body">
+                    {% for subsection, items in subsections.items() %}
+                        <h6>{{ subsection }}</h6>
 
-            {% if checklists[section][subsection] %}
-              <ul class="list-group mt-3">
-                {% for item in checklists[section][subsection] %}
-                  <li class="list-group-item d-flex justify-content-between align-items-center">
-                    {{ item }}
-                    <a href="{{ url_for('delete_item', section=section, subsection=subsection, index=loop.index0) }}" class="btn btn-sm btn-danger">Delete</a>
-                  </li>
-                {% endfor %}
-              </ul>
-            {% endif %}
+                        {% for item in items %}
+                            <div class="form-check">
+                                <input
+                                    class="form-check-input"
+                                    type="checkbox"
+                                    id="predefined-{{ section|replace(' ', '_') }}-{{ subsection|replace(' ', '_') }}-{{ loop.index0 }}"
+                                    name="predefined-{{ section|replace(' ', '_') }}-{{ subsection|replace(' ', '_') }}"
+                                    value="{{ item }}"
+                                    {% if item in checklists[section][subsection] %}checked{% endif %}
+                                >
+                                <label class="form-check-label">
+                                    {{ item }}
+                                </label>
+                            </div>
+                        {% endfor %}
 
-            <div class="input-group mt-3">
-              <input
-                type="text"
-                name="custom-item"
-                placeholder="Add custom item..."
-                class="form-control"
-              />
-              <input type="hidden" name="custom-section" value="{{ section }}" />
-              <input type="hidden" name="custom-subsection" value="{{ subsection }}" />
-              <button type="submit" class="btn btn-primary">Add</button>
+                        {% for item in checklists[section][subsection] %}
+                            {% if item not in items %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" checked disabled>
+                                    <label class="form-check-label custom-item">
+                                        {{ item }} (custom)
+                                    </label>
+                                    <a href="{{ url_for('delete_item', section=section, subsection=subsection, index=loop.index0) }}"
+                                       class="text-danger ms-2 small">Delete</a>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+
+                        <!-- Inline form for adding custom item -->
+                        <form method="POST" class="input-group my-3">
+                            <input type="hidden" name="custom-section" value="{{ section }}">
+                            <input type="hidden" name="custom-subsection" value="{{ subsection }}">
+                            <input type="text" name="custom-item" class="form-control"
+                                   placeholder="Add custom item to {{ subsection }}..." required>
+                            <button class="btn btn-outline-secondary" type="submit">Add</button>
+                        </form>
+
+                        <hr>
+                    {% endfor %}
+                </div>
             </div>
-          </fieldset>
         {% endfor %}
-      </div>
-    {% endfor %}
 
-  </form>
-  <p>Make sure you have all the info correct before downloading.</p>
-  <a href="{{ url_for('download_pdf') }}" class="btn btn-success">Download PDF</a>
+        <button class="btn btn-success me-2" type="submit">Update Checklist</button>
+        <a class="btn btn-primary" href="{{ url_for('download_pdf') }}">Download PDF</a>
+    </form>
+</div>
 </body>
 </html>

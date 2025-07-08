@@ -7,7 +7,7 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024  # 2MB
 
-# Nested checklist structure: Section -> Subsection -> items
+# Checklist structure: Section → Subsection → [items]
 PREDEFINED_ITEMS = {
     'Loading List': {
         'Pre-flight': [
@@ -16,9 +16,7 @@ PREDEFINED_ITEMS = {
             'Prepare spare batteries',
             'Load SD cards'
         ],
-        'In-flight': [
-            # Usually empty or notes like “monitor battery level”
-        ],
+        'In-flight': [],
         'Post-flight': [
             'Collect all equipment',
             'Check for damage after flight'
@@ -56,13 +54,16 @@ PREDEFINED_ITEMS = {
     }
 }
 
-# Store user-selected checklist items: Section -> Subsection -> [items]
+# Persistent checklist (including custom items)
 checklists = {
-    section: {sub: [] for sub in subsections}
-    for section, subsections in PREDEFINED_ITEMS.items()
+    section: {sub: [] for sub in subs}
+    for section, subs in PREDEFINED_ITEMS.items()
 }
 
 logo_filename = None
+
+def encode_key(s):
+    return s.replace(' ', '_')
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -75,29 +76,30 @@ def index():
                 logo_filename = secure_filename(logo.filename)
                 logo.save(os.path.join(app.config['UPLOAD_FOLDER'], logo_filename))
 
-        # # Handle predefined items selection
-        # for section, subsections in PREDEFINED_ITEMS.items():
-        #     for subsection in subsections:
-        #         field_name = f'predefined-{section}-{subsection}'
-        #         selected_items = request.form.getlist(field_name)
-        #         checklists[section][subsection] = selected_items
-
+        # Handle checklist selection update (only when checkbox form submitted)
         for section, subsections in PREDEFINED_ITEMS.items():
             for subsection in subsections:
-                field_name = f'predefined-{section}-{subsection}'
+                field_name = f'predefined-{encode_key(section)}-{encode_key(subsection)}'
                 selected_items = request.form.getlist(field_name)
-                # Preserve custom items by merging:
-                existing_custom_items = [item for item in checklists[section][subsection] if item not in PREDEFINED_ITEMS[section][subsection]]
-                checklists[section][subsection] = selected_items + existing_custom_items
 
+                predefined = PREDEFINED_ITEMS[section][subsection]
+                existing_custom_items = [
+                    item for item in checklists[section][subsection]
+                    if item not in predefined
+                ]
+
+                if selected_items:  # Only update if this form includes checkbox data
+                    checklists[section][subsection] = selected_items + existing_custom_items
 
         # Handle custom item addition
         custom_section = request.form.get('custom-section')
         custom_subsection = request.form.get('custom-subsection')
         custom_item = request.form.get('custom-item')
-        if (custom_section in checklists and
+        if (
+            custom_section in checklists and
             custom_subsection in checklists[custom_section] and
-            custom_item and custom_item.strip()):
+            custom_item and custom_item.strip()
+        ):
             checklists[custom_section][custom_subsection].append(custom_item.strip())
 
     return render_template(
@@ -109,9 +111,11 @@ def index():
 
 @app.route('/delete_item/<section>/<subsection>/<int:index>')
 def delete_item(section, subsection, index):
-    if (section in checklists and
+    if (
+        section in checklists and
         subsection in checklists[section] and
-        0 <= index < len(checklists[section][subsection])):
+        0 <= index < len(checklists[section][subsection])
+    ):
         del checklists[section][subsection][index]
     return redirect('/')
 
